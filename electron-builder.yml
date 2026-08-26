@@ -1,0 +1,22 @@
+appId: com.local.claude-desktop
+productName: Claude Desktop
+directories:
+  buildResources: resources
+  output: dist
+files:
+  - out/**
+  - resources/**
+  - package.json
+asar: true
+win:
+  target:
+    - nsis
+  icon: resources/icon.png
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: Claude Desktop
+electronLanguages:
+  - zh-CN
+  - en-US

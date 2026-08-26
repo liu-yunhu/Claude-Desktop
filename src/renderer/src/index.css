@@ -1,0 +1,146 @@
+@import "tailwindcss";
+
+/* 全局深色主题基调 */
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  font-family: "Segoe UI", "Microsoft YaHei", -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #16171f;
+  color: #d6d8e0;
+}
+
+/* 滚动条 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #3a3d4d;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #4a4e62;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* markdown 与代码块 */
+.markdown-body pre {
+  background: #101118;
+  border: 1px solid #2a2d3a;
+  border-radius: 8px;
+  padding: 12px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+.markdown-body code {
+  font-family: "Cascadia Code", Consolas, "JetBrains Mono", monospace;
+  font-size: 13px;
+}
+.markdown-body :not(pre) > code {
+  background: #262936;
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 12.5px;
+}
+.markdown-body p {
+  margin: 6px 0;
+}
+.markdown-body ul,
+.markdown-body ol {
+  margin: 6px 0;
+  padding-left: 22px;
+}
+.markdown-body table {
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid #2e3242;
+  padding: 4px 10px;
+}
+.markdown-body blockquote {
+  border-left: 3px solid #4a4e62;
+  margin: 8px 0;
+  padding: 2px 12px;
+  color: #9aa0b0;
+}
+.markdown-body a {
+  color: #7aa2f7;
+}
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+  margin: 14px 0 6px;
+  font-weight: 600;
+}
+
+/* highlight.js 主题（tokyo-night 风格配色） */
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-literal,
+.hljs-section {
+  color: #bb9af7;
+}
+.hljs-string,
+.hljs-attr,
+.hljs-template-string {
+  color: #9ece6a;
+}
+.hljs-title,
+.hljs-title.function_,
+.hljs-name {
+  color: #7aa2f7;
+}
+.hljs-number,
+.hljs-symbol {
+  color: #ff9e64;
+}
+.hljs-comment,
+.hljs-quote {
+  color: #565f89;
+  font-style: italic;
+}
+.hljs-built_in,
+.hljs-type {
+  color: #2ac3de;
+}
+.hljs-variable,
+.hljs-params {
+  color: #e0af68;
+}
+
+/* diff 视图 */
+.diff-add {
+  background: rgba(58, 158, 90, 0.18);
+  color: #9ece6a;
+}
+.diff-del {
+  background: rgba(224, 75, 75, 0.15);
+  color: #f7768e;
+}
+
+/* 流式光标 */
+.stream-cursor::after {
+  content: "▊";
+  animation: blink 1s step-start infinite;
+  color: #7aa2f7;
+}
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
+}
