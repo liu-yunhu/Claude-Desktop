@@ -108,6 +108,12 @@ dist
 # Stores VSCode versions used for testing VSCode extensions
 .vscode-test
 
+# JetBrains IDE 配置
+.idea/
+
+# Claude Code 本地会话数据
+.claude/
+
 # yarn v2
 .yarn/cache
 .yarn/unplugged
