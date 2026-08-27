@@ -1,5 +1,8 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
 import { randomUUID } from 'crypto'
+import { mkdirSync, existsSync } from 'fs'
+import { homedir } from 'os'
+import { spawn } from 'child_process'
 import { RunnerRegistry } from './claude/runner'
 import { listSessionHistory, renameSession, deleteSessionFile } from './claude/sessions'
 import { readSessionTranscript } from './claude/transcript'
@@ -27,6 +30,12 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   // ---- 聊天 ----
 
   ipcMain.handle('claude:send', (_e, tabId: string, prompt: string, opts: SessionOptions) => {
+    // cwd 不存在时 spawn 会直接失败（如默认仓库 C:\ClaudeDesktop 首次使用），先兜底创建
+    try {
+      mkdirSync(opts.workDir, { recursive: true })
+    } catch {
+      // 创建失败交给 spawn 报错，错误信息已透传到 GUI
+    }
     registry.ensure(tabId).send(prompt, opts)
     return { ok: true }
   })
@@ -66,6 +75,19 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     if (r.response !== 0) return { deleted: false }
     const res = await deleteSessionFile(filePath)
     return res.ok ? { deleted: true } : { deleted: false, error: res.error }
+  })
+
+  // 在外部终端用 `claude --resume <id>` 继续会话（-p 会话不出现在 CLI 的 --resume picker，
+  // 这是 CLI 有意行为，显式 ID 是受支持的恢复路径）
+  ipcMain.handle('sessions:open-in-terminal', (_e, sessionId: string, cwd: string) => {
+    const dir = existsSync(cwd) ? cwd : homedir()
+    const child = spawn(
+      'cmd.exe',
+      ['/c', 'start', 'pwsh', '-NoExit', '-Command', `claude --resume ${sessionId}`],
+      { cwd: dir, detached: true, windowsHide: false }
+    )
+    child.unref()
+    return { ok: true }
   })
 
   // ---- MCP ----

@@ -1,9 +1,10 @@
 import { create } from 'zustand'
 import type { AppSettings } from '@shared/types'
+import { DEFAULT_REPO_DIR } from '../constants'
 
 const DEFAULTS: AppSettings = {
   theme: 'dark',
-  defaultWorkDir: 'D:\\CodeProject\\Claude-Desktop',
+  defaultWorkDir: DEFAULT_REPO_DIR,
   defaultModel: '',
   defaultEffort: '',
   defaultPermissionMode: 'acceptEdits',

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useChat } from '../stores/chat'
 import { ContextMenu, type ContextMenuState } from './ContextMenu'
+import { DEFAULT_REPO_DIR } from '../constants'
 import type { SessionHistoryItem } from '@shared/types'
 
 /** 左侧栏：会话历史（读取 ~/.claude/projects 的 CLI 会话文件），按工作目录折叠分组 */
@@ -29,6 +30,8 @@ export function SessionSidebar({ onOpenPanel }: { onOpenPanel: (p: 'settings' | 
         )
       : history
     const map = new Map<string, SessionHistoryItem[]>()
+    // 默认仓库（No Repo）始终置顶显示，即使还没有会话
+    map.set(DEFAULT_REPO_DIR, [])
     for (const h of filtered.slice(0, 300)) {
       const arr = map.get(h.cwd) ?? []
       arr.push(h)
@@ -117,17 +120,29 @@ export function SessionSidebar({ onOpenPanel }: { onOpenPanel: (p: 'settings' | 
           const showItems = searching || !isCollapsed
           return (
             <div key={cwd} className="mb-0.5">
-              <button
-                className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-[#1e2029] text-left transition-colors"
+              <div
+                className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-[#1e2029] text-left transition-colors cursor-pointer"
                 onClick={() => toggle(cwd)}
                 title={cwd || '(未知目录)'}
               >
                 <span className="text-slate-600 text-[10px] w-3 shrink-0">
                   {searching ? '·' : isCollapsed ? '▸' : '▾'}
                 </span>
-                <span className="text-[12px] text-slate-400 truncate flex-1">📁 {dirName(cwd)}</span>
+                <span className="text-[12px] text-slate-400 truncate flex-1">
+                  📁 {cwd === DEFAULT_REPO_DIR ? 'No Repo' : dirName(cwd)}
+                </span>
                 <span className="text-[10.5px] text-slate-600 shrink-0">{items.length}</span>
-              </button>
+                <button
+                  className="shrink-0 w-4 h-4 rounded text-[11px] leading-none text-slate-500 hover:text-slate-100 hover:bg-[#3d5aa5] transition-colors"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    void newTab(cwd)
+                  }}
+                  title={`在 ${cwd === DEFAULT_REPO_DIR ? 'No Repo' : dirName(cwd)} 新建会话`}
+                >
+                  ＋
+                </button>
+              </div>
               {showItems &&
                 items.map((h) =>
                   editing?.id === h.sessionId ? (
@@ -150,6 +165,14 @@ export function SessionSidebar({ onOpenPanel }: { onOpenPanel: (p: 'settings' | 
                           x: e.clientX,
                           y: e.clientY,
                           items: [
+                            {
+                              label: '复制 Session ID',
+                              onClick: () => void navigator.clipboard.writeText(h.sessionId)
+                            },
+                            {
+                              label: '在终端继续',
+                              onClick: () => void window.api.sessions.openInTerminal(h.sessionId, h.cwd)
+                            },
                             { label: '重命名', onClick: () => startRename(h) },
                             { label: '删除', danger: true, onClick: () => void removeSession(h) }
                           ]

@@ -76,7 +76,9 @@ const api = {
       ipcRenderer.invoke('sessions:delete', filePath, title) as Promise<{
         deleted: boolean
         error?: string
-      }>
+      }>,
+    openInTerminal: (sessionId: string, cwd: string) =>
+      ipcRenderer.invoke('sessions:open-in-terminal', sessionId, cwd) as Promise<{ ok: boolean }>
   },
 
   // MCP 管理

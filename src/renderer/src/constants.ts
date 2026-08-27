@@ -42,6 +42,9 @@ export const COMMON_TOOLS = [
   'TodoWrite'
 ]
 
+/** 默认会话仓库（类似 Cursor 的 "No Repo"）：不挂项目的会话都落在这里 */
+export const DEFAULT_REPO_DIR = 'C:\\ClaudeDesktop'
+
 export type PanelKind = 'settings' | 'mcp' | 'config' | null
 
 /** 斜杠命令提示。local = GUI 内可直接执行；否则 -p 模式不可用，仅填入文本 */
