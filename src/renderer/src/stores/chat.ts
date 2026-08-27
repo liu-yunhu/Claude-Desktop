@@ -171,6 +171,7 @@ export const useChat = create<ChatState>((set, get) => ({
     const tab = tabs.find((t) => t.id === activeTabId)
     if (!tab || tab.running) return
 
+    const isFirst = tab.messages.length === 0
     const userMsg: MessageItem = { id: nextId(), role: 'user', text: prompt, tools: [], streaming: false }
     set((s) => ({
       tabs: s.tabs.map((t) =>
@@ -186,6 +187,26 @@ export const useChat = create<ChatState>((set, get) => ({
           : t
       )
     }))
+    // 首条消息即上侧边栏：磁盘文件要等 CLI 启动才写出，先用内存数据占位，
+    // loadHistory 合并时同 sessionId 的磁盘记录会覆盖它
+    if (isFirst) {
+      const now = Date.now()
+      set((s) => ({
+        history: [
+          {
+            sessionId: tab.options.sessionId ?? '',
+            title: prompt.replace(/\s+/g, ' ').slice(0, 120) || '(无标题会话)',
+            cwd: tab.options.workDir,
+            projectDir: '',
+            filePath: '',
+            lastModified: now,
+            createdAt: now,
+            messageCount: 1
+          },
+          ...s.history
+        ]
+      }))
+    }
     const current = get().tabs.find((t) => t.id === activeTabId)!
     await window.api.claude.send(activeTabId, prompt, current.options)
   },
@@ -219,13 +240,18 @@ export const useChat = create<ChatState>((set, get) => ({
         return { ...t, messages, running: false, pendingPerms: [] }
       })
     }))
+    // 进程退出即本轮已写盘（~/.claude/projects/<uuid>.jsonl），刷新侧边栏历史
+    void get().loadHistory()
   },
 
   loadHistory: async () => {
     set({ historyLoading: true })
     try {
-      const history = await window.api.sessions.list()
-      set({ history })
+      const fresh = await window.api.sessions.list()
+      const diskIds = new Set(fresh.map((h) => h.sessionId))
+      // 保留磁盘上还没有的乐观占位条目（首条消息已发、CLI 尚未写盘）。
+      // 占位条目特征是 filePath 为空；有 filePath 而磁盘上没有 = 已被删除，须丢弃
+      set({ history: [...get().history.filter((h) => h.filePath === '' && !diskIds.has(h.sessionId)), ...fresh] })
     } finally {
       set({ historyLoading: false })
     }

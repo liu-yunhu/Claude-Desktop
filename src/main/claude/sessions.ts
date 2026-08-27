@@ -67,10 +67,13 @@ export async function renameSession(
 export async function deleteSessionFile(filePath: string): Promise<{ ok: boolean; error?: string }> {
   try {
     await unlink(filePath)
-    return { ok: true }
   } catch (e) {
-    return { ok: false, error: `删除会话文件失败: ${(e as Error).message}` }
+    // 列表是快照，文件可能已被删过；已不存在即为目标状态，视为成功
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') {
+      return { ok: false, error: `删除会话文件失败: ${(e as Error).message}` }
+    }
   }
+  return { ok: true }
 }
 
 /** 读文件头部 64KB + 尾部 16KB，提取元数据。title 优先取最新的 custom-title。 */
