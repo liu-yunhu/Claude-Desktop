@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useChat } from '../stores/chat'
 import { MessageBubble } from './MessageBubble'
 import { PromptBox } from './PromptBox'
+import { PermissionBanner } from './PermissionBanner'
 
 /** 聊天主视图：消息流 + 输入框 */
 export function ChatView({ tabId }: { tabId: string }) {
@@ -56,6 +57,9 @@ export function ChatView({ tabId }: { tabId: string }) {
           <MessageBubble key={m.id} msg={m} />
         ))}
       </div>
+
+      {/* 工具授权横幅 */}
+      <PermissionBanner tabId={tabId} />
 
       {/* 输入框 */}
       <PromptBox tabId={tabId} running={tab.running} />

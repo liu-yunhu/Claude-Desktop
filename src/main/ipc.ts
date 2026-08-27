@@ -11,7 +11,17 @@ import { appState } from './state'
 export function registerIpc(getWindow: () => BrowserWindow | null): void {
   const registry = new RunnerRegistry(
     (tabId, event) => getWindow()?.webContents.send('claude:event', { tabId, event }),
-    (tabId, code, err) => getWindow()?.webContents.send('claude:exit', { tabId, code, err })
+    (tabId, code, err) => getWindow()?.webContents.send('claude:exit', { tabId, code, err }),
+    (info) =>
+      getWindow()?.webContents.send('claude:permission', {
+        tabId: info.tabId,
+        requestId: info.requestId,
+        toolName: info.toolName,
+        input: info.input,
+        title: info.title,
+        description: info.description
+      }),
+    (requestId) => getWindow()?.webContents.send('claude:permission-cancel', { requestId })
   )
 
   // ---- 聊天 ----
@@ -24,6 +34,13 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   ipcMain.handle('claude:stop', (_e, tabId: string) => {
     return { ok: registry.get(tabId)?.kill() ?? false }
   })
+
+  ipcMain.handle(
+    'claude:permission-response',
+    (_e, tabId: string, requestId: string, allow: boolean, denyMessage?: string) => {
+      return { ok: registry.get(tabId)?.respondPermission(requestId, allow, denyMessage) ?? false }
+    }
+  )
 
   ipcMain.handle('claude:new-uuid', () => randomUUID())
 

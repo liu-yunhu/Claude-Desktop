@@ -29,14 +29,23 @@ export default function App() {
     const offExit = window.api.claude.onExit(({ tabId, code, err }) => {
       useChat.getState().handleExit(tabId, code, err)
     })
+    const offPermReq = window.api.claude.onPermissionRequest((info) => {
+      useChat.getState().applyPermissionRequest(info)
+    })
+    const offPermCancel = window.api.claude.onPermissionCancel(({ requestId }) => {
+      useChat.getState().cancelPermission(requestId)
+    })
     if (!bootstrapped) {
       bootstrapped = true
-      void newTab()
+      // 先等设置加载完成再建初始标签页，否则首个会话会用硬编码的默认工作目录
+      void useSettings.getState().load().then(() => newTab())
     }
 
     return () => {
       offEvent()
       offExit()
+      offPermReq()
+      offPermCancel()
     }
   }, [newTab])
 

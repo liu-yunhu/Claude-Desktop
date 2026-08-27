@@ -11,6 +11,7 @@ Claude Code CLI 的桌面 GUI 封装。
 - **多标签会话**：每个标签页独立的工作目录 / 模型 / 权限模式 / 子进程
 - **会话历史**：读取 `~/.claude/projects/` 下的 CLI 会话文件，恢复走 `claude --resume`
 - **会话参数**：模型、effort、权限模式、allowedTools 白名单、附加目录、每轮预算上限
+- **工具授权**：启用 `--permission-prompt-tool stdio` 控制协议（与官方 Agent SDK 同款机制），CLI 需要人工授权时 GUI 内弹出授权横幅，可逐次允许/拒绝
 - **费用统计**：每轮 / 每会话的美元成本与 token 用量（来自 result 事件）
 - **MCP 管理**：`claude mcp list / add / remove` 的面板封装
 - **配置管理**：`~/.claude/settings.json` 编辑 + `claude doctor` 健康检查
@@ -114,6 +115,7 @@ resources/icon.png # 应用图标
 
 ## 已知限制
 
-- `-p` 非交互模式**没有权限弹窗**：待授权工具会被直接拒绝。通过「权限模式 + allowedTools 白名单」弥补（会话设置栏可调，选中 `bypassPermissions` 有红色警告）。
+- 工具授权依赖控制协议（`--permission-prompt-tool stdio`），`--permission-mode` 仍控制哪些操作会触发询问：`acceptEdits` 自动放行文件编辑、`auto` 由分类器自动决策、`manual` 全部询问；需要免确认的操作可加入 `--allowedTools` 白名单。
 - 每条消息有约 1–2s 的进程冷启动（换取无状态、可恢复的稳健架构）。
-- 斜杠命令（`/compact`、`/clear` 等）在 `-p` 模式不可用。
+- 斜杠命令（`/compact`、`/clear` 等）在 `-p` 模式不可用；GUI 已将部分命令映射为本地等效操作（输入框输入 `/` 查看提示）。
+- 会话权限协议为 CLI 内部实现（非公开 API），Claude Code 大版本升级时可能需要适配（`scripts/test-permission-flow.mjs` 可随时回归验证）。

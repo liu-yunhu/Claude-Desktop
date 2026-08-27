@@ -49,6 +49,13 @@ function createWindow(): void {
     }
   })
 
+  mainWindow.on('closed', () => {
+    mainWindow = null
+    // ponytail: 窗口没了托盘就该消失，否则 click 回调引用已销毁窗口会崩
+    tray?.destroy()
+    tray = null
+  })
+
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url)
     return { action: 'deny' }
@@ -96,5 +103,6 @@ app.whenReady().then(() => {
 })
 
 app.on('window-all-closed', () => {
-  // 关闭到托盘，不退出；托盘菜单里才真正退出
+  // closeToTray 时窗口只是 hide，不会走到这里；真正关闭就退出
+  if (process.platform !== 'darwin') app.quit()
 })

@@ -56,6 +56,16 @@ export interface ClaudeStreamEvent {
   estimated_tokens?: number
 }
 
+/** GUI 授权框所需的一次工具授权请求信息（对应控制协议的 can_use_tool） */
+export interface PermissionRequestInfo {
+  requestId: string
+  toolName: string
+  input: Record<string, unknown>
+  /** CLI 生成的完整提示句（如 "Claude wants to run…"），优先展示 */
+  title?: string
+  description?: string
+}
+
 /** 会话运行参数（映射为 claude CLI 启动参数） */
 export interface SessionOptions {
   /** 工作目录（cwd） */

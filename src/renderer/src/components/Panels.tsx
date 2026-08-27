@@ -5,10 +5,24 @@ import { useSettings } from '../stores/settings'
 export function SettingsPanel({ onClose }: { onClose: () => void }) {
   const s = useSettings()
   const [workDir, setWorkDir] = useState(s.defaultWorkDir)
+  const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   useEffect(() => {
     void useSettings.getState().load()
   }, [])
+
+  const doSave = async () => {
+    try {
+      await useSettings.getState().save({ defaultWorkDir: workDir })
+      setSaveError('')
+      setSaved(true)
+      window.setTimeout(() => setSaved(false), 2000)
+    } catch (e) {
+      setSaveError(`保存失败: ${String(e)}`)
+      setSaved(false)
+    }
+  }
 
   return (
     <Panel title="应用设置" onClose={onClose}>
@@ -65,12 +79,16 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
         </label>
       </Field>
 
-      <button
-        className="mt-2 px-4 py-1.5 rounded-md bg-[#3d5aa5] hover:bg-[#4868bd] text-white text-[13px]"
-        onClick={() => void s.save({ defaultWorkDir: workDir })}
-      >
-        保存
-      </button>
+      <div className="mt-2 flex items-center gap-3">
+        <button
+          className="px-4 py-1.5 rounded-md bg-[#3d5aa5] hover:bg-[#4868bd] text-white text-[13px] transition-colors"
+          onClick={() => void doSave()}
+        >
+          保存
+        </button>
+        {saved && <span className="text-[12.5px] text-emerald-400">✓ 已保存（对新会话生效）</span>}
+        {saveError && <span className="text-[12.5px] text-rose-400">{saveError}</span>}
+      </div>
     </Panel>
   )
 }

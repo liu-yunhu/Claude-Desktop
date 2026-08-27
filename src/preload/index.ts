@@ -7,6 +7,33 @@ const api = {
     send: (tabId: string, prompt: string, opts: SessionOptions) =>
       ipcRenderer.invoke('claude:send', tabId, prompt, opts),
     stop: (tabId: string) => ipcRenderer.invoke('claude:stop', tabId),
+    respondPermission: (tabId: string, requestId: string, allow: boolean, denyMessage?: string) =>
+      ipcRenderer.invoke(
+        'claude:permission-response',
+        tabId,
+        requestId,
+        allow,
+        denyMessage
+      ) as Promise<{ ok: boolean }>,
+    onPermissionRequest: (
+      cb: (p: {
+        tabId: string
+        requestId: string
+        toolName: string
+        input: Record<string, unknown>
+        title?: string
+        description?: string
+      }) => void
+    ) => {
+      const listener = (_e: unknown, p: Parameters<typeof cb>[0]) => cb(p)
+      ipcRenderer.on('claude:permission', listener as never)
+      return () => ipcRenderer.removeListener('claude:permission', listener as never)
+    },
+    onPermissionCancel: (cb: (p: { requestId: string }) => void) => {
+      const listener = (_e: unknown, p: { requestId: string }) => cb(p)
+      ipcRenderer.on('claude:permission-cancel', listener as never)
+      return () => ipcRenderer.removeListener('claude:permission-cancel', listener as never)
+    },
     newUuid: () => ipcRenderer.invoke('claude:new-uuid'),
     onEvent: (cb: (payload: { tabId: string; event: ClaudeStreamEvent }) => void) => {
       const listener = (_e: unknown, payload: { tabId: string; event: ClaudeStreamEvent }) => cb(payload)

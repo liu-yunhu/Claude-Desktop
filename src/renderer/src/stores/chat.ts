@@ -1,5 +1,10 @@
 import { create } from 'zustand'
-import type { ClaudeStreamEvent, SessionOptions, SessionHistoryItem } from '@shared/types'
+import type {
+  ClaudeStreamEvent,
+  SessionOptions,
+  SessionHistoryItem,
+  PermissionRequestInfo
+} from '@shared/types'
 import { useSettings } from './settings'
 import type { PanelKind } from '../constants'
 
@@ -50,6 +55,8 @@ export interface Tab {
   lastError?: string
   /** 恢复历史会话时标记 */
   resumedFrom?: string
+  /** 等待用户授权的工具调用（can_use_tool 控制请求） */
+  pendingPerms: PermissionRequestInfo[]
   /** stream_event 的 content_block 索引 -> 本轮 live 消息内的块索引 */
   liveBlockMap: Map<number, number>
   liveMsgId?: string
@@ -78,6 +85,9 @@ export interface ChatState {
   renameOpenTab: (sessionId: string, title: string) => void
   closeBySession: (sessionId: string) => void
   moveTab: (draggedId: string, targetIndex: number) => void
+  applyPermissionRequest: (info: PermissionRequestInfo & { tabId: string }) => void
+  cancelPermission: (requestId: string) => void
+  respondPermission: (tabId: string, requestId: string, allow: boolean) => Promise<void>
   loadTranscript: (tabId: string) => Promise<void>
 }
 
@@ -125,6 +135,7 @@ export const useChat = create<ChatState>((set, get) => ({
       },
       running: false,
       totalCost: 0,
+      pendingPerms: [],
       liveBlockMap: new Map()
     }
     set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tabId }))
@@ -205,7 +216,7 @@ export const useChat = create<ChatState>((set, get) => ({
             streaming: false
           })
         }
-        return { ...t, messages, running: false }
+        return { ...t, messages, running: false, pendingPerms: [] }
       })
     }))
   },
@@ -253,6 +264,7 @@ export const useChat = create<ChatState>((set, get) => ({
       running: false,
       totalCost: 0,
       resumedFrom: item.filePath,
+      pendingPerms: [],
       liveBlockMap: new Map()
     }
     set((s) => ({ tabs: [...s.tabs, tab], activeTabId: tabId }))
@@ -304,6 +316,43 @@ export const useChat = create<ChatState>((set, get) => ({
       tabs.splice(Math.min(idx, tabs.length), 0, moved)
       return { tabs }
     })
+  },
+
+  applyPermissionRequest: (info) => {
+    set((s) => ({
+      tabs: s.tabs.map((t) =>
+        t.id === info.tabId
+          ? {
+              ...t,
+              pendingPerms: [
+                ...t.pendingPerms,
+                {
+                  requestId: info.requestId,
+                  toolName: info.toolName,
+                  input: info.input,
+                  title: info.title,
+                  description: info.description
+                }
+              ]
+            }
+          : t
+      )
+    }))
+  },
+
+  cancelPermission: (requestId) => {
+    set((s) => ({
+      tabs: s.tabs.map((t) =>
+        t.pendingPerms.some((p) => p.requestId === requestId)
+          ? { ...t, pendingPerms: t.pendingPerms.filter((p) => p.requestId !== requestId) }
+          : t
+      )
+    }))
+  },
+
+  respondPermission: async (tabId, requestId, allow) => {
+    await window.api.claude.respondPermission(tabId, requestId, allow)
+    get().cancelPermission(requestId)
   }
 }))
 
