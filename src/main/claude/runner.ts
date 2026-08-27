@@ -131,8 +131,8 @@ export class SessionRunner {
     )
   }
 
-  /** GUI 对一次授权请求的决策，写回控制协议 */
-  respondPermission(requestId: string, allow: boolean, denyMessage?: string): boolean {
+  /** GUI 对一次授权请求的决策，写回控制协议。updatedInput 用于 AskUserQuestion 等需要回填用户输入的工具 */
+  respondPermission(requestId: string, allow: boolean, denyMessage?: string, updatedInput?: Record<string, unknown>): boolean {
     const pending = this.pendingPerms.get(requestId)
     if (!pending || !this.child) return false
     this.pendingPerms.delete(requestId)
@@ -143,7 +143,7 @@ export class SessionRunner {
           subtype: 'success',
           request_id: requestId,
           response: allow
-            ? { behavior: 'allow', updatedInput: pending.input }
+            ? { behavior: 'allow', updatedInput: updatedInput ?? pending.input }
             : { behavior: 'deny', message: denyMessage || '用户在 Claude Desktop 中拒绝了此操作' }
         }
       })
@@ -210,6 +210,16 @@ export class SessionRunner {
       return
     }
     if (ev.type === 'control_response') return // initialize 应答等，忽略
+
+    if (ev.type === 'result') {
+      // result 是本轮最后事件。-p 进程在 stdin 关闭前不会自行退出（保持打开会泄漏进程、
+      // 挡住下一次 send），收到 result 后关闭 stdin 让进程收尾退出，close 时自然释放槽位
+      try {
+        this.child?.stdin?.end()
+      } catch {
+        // 进程已退出时忽略
+      }
+    }
 
     this.onEvent(this.tabId, ev as ClaudeStreamEvent)
   }

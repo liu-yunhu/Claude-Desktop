@@ -87,7 +87,7 @@ export interface ChatState {
   moveTab: (draggedId: string, targetIndex: number) => void
   applyPermissionRequest: (info: PermissionRequestInfo & { tabId: string }) => void
   cancelPermission: (requestId: string) => void
-  respondPermission: (tabId: string, requestId: string, allow: boolean) => Promise<void>
+  respondPermission: (tabId: string, requestId: string, allow: boolean, updatedInput?: Record<string, unknown>) => Promise<void>
   loadTranscript: (tabId: string) => Promise<void>
 }
 
@@ -376,8 +376,8 @@ export const useChat = create<ChatState>((set, get) => ({
     }))
   },
 
-  respondPermission: async (tabId, requestId, allow) => {
-    await window.api.claude.respondPermission(tabId, requestId, allow)
+  respondPermission: async (tabId, requestId, allow, updatedInput) => {
+    await window.api.claude.respondPermission(tabId, requestId, allow, undefined, updatedInput)
     get().cancelPermission(requestId)
   }
 }))

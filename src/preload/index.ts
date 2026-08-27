@@ -7,13 +7,20 @@ const api = {
     send: (tabId: string, prompt: string, opts: SessionOptions) =>
       ipcRenderer.invoke('claude:send', tabId, prompt, opts),
     stop: (tabId: string) => ipcRenderer.invoke('claude:stop', tabId),
-    respondPermission: (tabId: string, requestId: string, allow: boolean, denyMessage?: string) =>
+    respondPermission: (
+      tabId: string,
+      requestId: string,
+      allow: boolean,
+      denyMessage?: string,
+      updatedInput?: Record<string, unknown>
+    ) =>
       ipcRenderer.invoke(
         'claude:permission-response',
         tabId,
         requestId,
         allow,
-        denyMessage
+        denyMessage,
+        updatedInput
       ) as Promise<{ ok: boolean }>,
     onPermissionRequest: (
       cb: (p: {

@@ -46,8 +46,8 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
 
   ipcMain.handle(
     'claude:permission-response',
-    (_e, tabId: string, requestId: string, allow: boolean, denyMessage?: string) => {
-      return { ok: registry.get(tabId)?.respondPermission(requestId, allow, denyMessage) ?? false }
+    (_e, tabId: string, requestId: string, allow: boolean, denyMessage?: string, updatedInput?: Record<string, unknown>) => {
+      return { ok: registry.get(tabId)?.respondPermission(requestId, allow, denyMessage, updatedInput) ?? false }
     }
   )
 
