@@ -77,6 +77,7 @@ export interface ChatState {
   resumeSession: (item: SessionHistoryItem) => Promise<void>
   renameOpenTab: (sessionId: string, title: string) => void
   closeBySession: (sessionId: string) => void
+  moveTab: (draggedId: string, targetIndex: number) => void
   loadTranscript: (tabId: string) => Promise<void>
 }
 
@@ -290,6 +291,19 @@ export const useChat = create<ChatState>((set, get) => ({
       (t) => t.activeSessionId === sessionId || t.options.resumeSessionId === sessionId
     )
     if (tab) get().closeTab(tab.id)
+  },
+
+  moveTab: (draggedId, targetIndex) => {
+    set((s) => {
+      const from = s.tabs.findIndex((t) => t.id === draggedId)
+      if (from < 0 || from === targetIndex) return s
+      const tabs = [...s.tabs]
+      const [moved] = tabs.splice(from, 1)
+      // 被拖 tab 原位置在目标之前时，移除后目标索引左移一位
+      const idx = from < targetIndex ? targetIndex - 1 : targetIndex
+      tabs.splice(Math.min(idx, tabs.length), 0, moved)
+      return { tabs }
+    })
   }
 }))
 
