@@ -1,7 +1,7 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
 import { randomUUID } from 'crypto'
 import { RunnerRegistry } from './claude/runner'
-import { listSessionHistory, renameSession } from './claude/sessions'
+import { listSessionHistory, renameSession, deleteSessionFile } from './claude/sessions'
 import { readSessionTranscript } from './claude/transcript'
 import { mcpApi } from './claude/mcp'
 import { configApi } from './claude/config'
@@ -34,6 +34,22 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
   ipcMain.handle('sessions:rename', (_e, filePath: string, sessionId: string, newName: string) =>
     renameSession(filePath, sessionId, newName)
   )
+  ipcMain.handle('sessions:delete', async (_e, filePath: string, title: string) => {
+    const opts = {
+      type: 'warning' as const,
+      buttons: ['删除', '取消'],
+      defaultId: 1, // 默认聚焦「取消」，防误删
+      cancelId: 1,
+      title: '删除会话',
+      message: `确定删除会话「${title}」吗？`,
+      detail: '将永久删除该会话文件，此操作不可恢复。'
+    }
+    const win = getWindow()
+    const r = win ? await dialog.showMessageBox(win, opts) : await dialog.showMessageBox(opts)
+    if (r.response !== 0) return { deleted: false }
+    const res = await deleteSessionFile(filePath)
+    return res.ok ? { deleted: true } : { deleted: false, error: res.error }
+  })
 
   // ---- MCP ----
 

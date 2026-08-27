@@ -1,4 +1,4 @@
-import { readdir, stat, open, appendFile } from 'fs/promises'
+import { readdir, stat, open, appendFile, unlink } from 'fs/promises'
 import { join, basename } from 'path'
 import { homedir } from 'os'
 import type { SessionHistoryItem } from '@shared/types'
@@ -60,6 +60,16 @@ export async function renameSession(
     return { ok: true }
   } catch (e) {
     return { ok: false, error: `写入会话文件失败: ${(e as Error).message}` }
+  }
+}
+
+/** 删除会话：删除对应的 JSONL 会话文件。CLI 无删除命令，会话即文件。 */
+export async function deleteSessionFile(filePath: string): Promise<{ ok: boolean; error?: string }> {
+  try {
+    await unlink(filePath)
+    return { ok: true }
+  } catch (e) {
+    return { ok: false, error: `删除会话文件失败: ${(e as Error).message}` }
   }
 }
 

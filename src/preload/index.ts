@@ -44,6 +44,11 @@ const api = {
       ipcRenderer.invoke('sessions:rename', filePath, sessionId, newName) as Promise<{
         ok: boolean
         error?: string
+      }>,
+    delete: (filePath: string, title: string) =>
+      ipcRenderer.invoke('sessions:delete', filePath, title) as Promise<{
+        deleted: boolean
+        error?: string
       }>
   },
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useChat } from './stores/chat'
 import { useSettings } from './stores/settings'
 import { TabBar } from './components/TabBar'
@@ -7,15 +7,14 @@ import { SessionSettingsBar } from './components/SessionSettingsBar'
 import { ChatView } from './components/ChatView'
 import { SettingsPanel, McpPanel, ConfigPanel } from './components/Panels'
 
-type PanelKind = 'settings' | 'mcp' | 'config' | null
-
 // 模块级标志：newTab 是异步的（内部 await newUuid 后才 set），
 // StrictMode 双触发时两轮 effect 都会读到 tabs.length===0，导致重复建标签页。
 // 用同步标志保证启动阶段只建一次。
 let bootstrapped = false
 
 export default function App() {
-  const [panel, setPanel] = useState<PanelKind>(null)
+  const panel = useChat((s) => s.panel)
+  const setPanel = useChat((s) => s.setPanel)
   const tabs = useChat((s) => s.tabs)
   const activeTabId = useChat((s) => s.activeTabId)
   const newTab = useChat((s) => s.newTab)

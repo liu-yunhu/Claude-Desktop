@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import type { ClaudeStreamEvent, SessionOptions, SessionHistoryItem } from '@shared/types'
 import { useSettings } from './settings'
+import type { PanelKind } from '../constants'
 
 /** 一次工具调用 */
 export interface ToolCall {
@@ -59,11 +60,14 @@ export interface ChatState {
   activeTabId: string
   history: SessionHistoryItem[]
   historyLoading: boolean
+  panel: PanelKind
   // actions
   newTab: (workDir?: string) => Promise<void>
   closeTab: (tabId: string) => void
   closeTabs: (tabIds: string[]) => void
   setActiveTab: (tabId: string) => void
+  setPanel: (p: PanelKind) => void
+  insertSystemMessage: (tabId: string, text: string) => void
   updateOptions: (tabId: string, patch: Partial<SessionOptions>) => void
   send: (prompt: string) => Promise<void>
   stop: () => Promise<void>
@@ -72,6 +76,7 @@ export interface ChatState {
   loadHistory: () => Promise<void>
   resumeSession: (item: SessionHistoryItem) => Promise<void>
   renameOpenTab: (sessionId: string, title: string) => void
+  closeBySession: (sessionId: string) => void
   loadTranscript: (tabId: string) => Promise<void>
 }
 
@@ -88,6 +93,19 @@ export const useChat = create<ChatState>((set, get) => ({
   activeTabId: '',
   history: [],
   historyLoading: false,
+  panel: null,
+
+  setPanel: (p) => set({ panel: p }),
+
+  insertSystemMessage: (tabId, text) => {
+    set((s) => ({
+      tabs: s.tabs.map((t) =>
+        t.id === tabId
+          ? { ...t, messages: [...t.messages, { id: nextId(), role: 'system', text, tools: [], streaming: false }] }
+          : t
+      )
+    }))
+  },
 
   newTab: async (workDir) => {
     const tabId = uid()
@@ -265,6 +283,13 @@ export const useChat = create<ChatState>((set, get) => ({
           : t
       )
     }))
+  },
+
+  closeBySession: (sessionId) => {
+    const tab = get().tabs.find(
+      (t) => t.activeSessionId === sessionId || t.options.resumeSessionId === sessionId
+    )
+    if (tab) get().closeTab(tab.id)
   }
 }))
 

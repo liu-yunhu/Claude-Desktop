@@ -50,6 +50,17 @@ export function SessionSidebar({ onOpenPanel }: { onOpenPanel: (p: 'settings' | 
     setMenu(null)
   }
 
+  // 删除会话：主进程弹原生确认框，确认后删文件
+  const removeSession = async (h: SessionHistoryItem) => {
+    const r = await window.api.sessions.delete(h.filePath, h.title)
+    if (r.deleted) {
+      void useChat.getState().loadHistory()
+      useChat.getState().closeBySession(h.sessionId)
+    } else if (r.error) {
+      setRenameError(r.error)
+    }
+  }
+
   // 重命名：向 CLI 会话文件追加 custom-title 行（/rename、--name 的同一存储机制）
   const commitRename = async () => {
     if (!editing) return
@@ -138,7 +149,10 @@ export function SessionSidebar({ onOpenPanel }: { onOpenPanel: (p: 'settings' | 
                         setMenu({
                           x: e.clientX,
                           y: e.clientY,
-                          items: [{ label: '重命名', onClick: () => startRename(h) }]
+                          items: [
+                            { label: '重命名', onClick: () => startRename(h) },
+                            { label: '删除', danger: true, onClick: () => void removeSession(h) }
+                          ]
                         })
                       }}
                       title={`${h.title}\n\n${new Date(h.lastModified).toLocaleString()}\n${h.sessionId}`}
