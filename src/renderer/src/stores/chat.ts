@@ -62,6 +62,7 @@ export interface ChatState {
   // actions
   newTab: (workDir?: string) => Promise<void>
   closeTab: (tabId: string) => void
+  closeTabs: (tabIds: string[]) => void
   setActiveTab: (tabId: string) => void
   updateOptions: (tabId: string, patch: Partial<SessionOptions>) => void
   send: (prompt: string) => Promise<void>
@@ -70,6 +71,7 @@ export interface ChatState {
   handleExit: (tabId: string, code: number | null, err?: string) => void
   loadHistory: () => Promise<void>
   resumeSession: (item: SessionHistoryItem) => Promise<void>
+  renameOpenTab: (sessionId: string, title: string) => void
   loadTranscript: (tabId: string) => Promise<void>
 }
 
@@ -114,6 +116,15 @@ export const useChat = create<ChatState>((set, get) => ({
     set((s) => {
       const tabs = s.tabs.filter((t) => t.id !== tabId)
       const activeTabId = s.activeTabId === tabId ? (tabs[0]?.id ?? '') : s.activeTabId
+      return { tabs, activeTabId }
+    })
+  },
+
+  closeTabs: (tabIds) => {
+    for (const id of tabIds) void window.api.claude.stop(id)
+    set((s) => {
+      const tabs = s.tabs.filter((t) => !tabIds.includes(t.id))
+      const activeTabId = tabIds.includes(s.activeTabId) ? (tabs[0]?.id ?? '') : s.activeTabId
       return { tabs, activeTabId }
     })
   },
@@ -191,6 +202,14 @@ export const useChat = create<ChatState>((set, get) => ({
   },
 
   resumeSession: async (item) => {
+    // 该会话已打开则直接切换，不重复开 tab
+    const existing = get().tabs.find(
+      (t) => t.activeSessionId === item.sessionId || t.options.resumeSessionId === item.sessionId
+    )
+    if (existing) {
+      set({ activeTabId: existing.id })
+      return
+    }
     const tabId = uid()
     const tab: Tab = {
       id: tabId,
@@ -236,6 +255,16 @@ export const useChat = create<ChatState>((set, get) => ({
       model: t.model
     }))
     setTranscript(tabId, messages)
+  },
+
+  renameOpenTab: (sessionId, title) => {
+    set((s) => ({
+      tabs: s.tabs.map((t) =>
+        t.activeSessionId === sessionId || t.options.resumeSessionId === sessionId
+          ? { ...t, title: title.slice(0, 24) || t.title }
+          : t
+      )
+    }))
   }
 }))
 

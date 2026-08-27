@@ -1,4 +1,6 @@
+import { useState, type MouseEvent as ReactMouseEvent } from 'react'
 import { useChat } from '../stores/chat'
+import { ContextMenu, type ContextMenuState } from './ContextMenu'
 
 /** 顶部多标签栏（每个标签 = 一个独立 claude 会话进程组 + 独立工作目录） */
 export function TabBar() {
@@ -6,7 +8,30 @@ export function TabBar() {
   const activeTabId = useChat((s) => s.activeTabId)
   const setActiveTab = useChat((s) => s.setActiveTab)
   const closeTab = useChat((s) => s.closeTab)
+  const closeTabs = useChat((s) => s.closeTabs)
   const newTab = useChat((s) => s.newTab)
+  const [menu, setMenu] = useState<ContextMenuState | null>(null)
+
+  const openMenu = (e: ReactMouseEvent<HTMLDivElement>, tabId: string) => {
+    e.preventDefault()
+    const idx = tabs.findIndex((t) => t.id === tabId)
+    const leftIds = tabs.slice(0, idx).map((t) => t.id)
+    const rightIds = tabs.slice(idx + 1).map((t) => t.id)
+    setMenu({
+      x: e.clientX,
+      y: e.clientY,
+      items: [
+        { label: '关闭', onClick: () => closeTab(tabId) },
+        {
+          label: '关闭其他',
+          disabled: tabs.length <= 1,
+          onClick: () => closeTabs([...leftIds, ...rightIds])
+        },
+        { label: '关闭左侧', disabled: leftIds.length === 0, onClick: () => closeTabs(leftIds) },
+        { label: '关闭右侧', disabled: rightIds.length === 0, onClick: () => closeTabs(rightIds) }
+      ]
+    })
+  }
 
   return (
     <div className="flex items-end bg-[#13141c] border-b border-[#23252f] px-1 pt-1 select-none">
@@ -20,6 +45,7 @@ export function TabBar() {
                 : 'text-slate-400 hover:text-slate-200 hover:bg-[#1a1c26]'
             }`}
             onClick={() => setActiveTab(t.id)}
+            onContextMenu={(e) => openMenu(e, t.id)}
           >
             {t.running && <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse shrink-0" />}
             <span className="truncate">{t.title}</span>
@@ -43,6 +69,8 @@ export function TabBar() {
       >
         ＋
       </button>
+
+      {menu && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}
     </div>
   )
 }

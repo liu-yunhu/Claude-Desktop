@@ -1,19 +1,26 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useChat } from '../stores/chat'
+import { ContextMenu, type ContextMenuState } from './ContextMenu'
 import type { SessionHistoryItem } from '@shared/types'
 
-/** 左侧栏：会话历史（读取 ~/.claude/projects 的 CLI 会话文件） */
+/** 左侧栏：会话历史（读取 ~/.claude/projects 的 CLI 会话文件），按工作目录折叠分组 */
 export function SessionSidebar({ onOpenPanel }: { onOpenPanel: (p: 'settings' | 'mcp' | 'config') => void }) {
   const history = useChat((s) => s.history)
   const loading = useChat((s) => s.historyLoading)
   const resumeSession = useChat((s) => s.resumeSession)
   const newTab = useChat((s) => s.newTab)
   const [search, setSearch] = useState('')
+  // 折叠的目录集合（默认全部折叠，点击目录行展开/收起）
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
+  const [menu, setMenu] = useState<ContextMenuState | null>(null)
+  const [editing, setEditing] = useState<{ id: string; value: string } | null>(null)
+  const [renameError, setRenameError] = useState('')
 
   useEffect(() => {
     void useChat.getState().loadHistory()
   }, [])
 
+  const searching = search.trim() !== ''
   const grouped = useMemo(() => {
     const q = search.trim().toLowerCase()
     const filtered = q
@@ -29,6 +36,33 @@ export function SessionSidebar({ onOpenPanel }: { onOpenPanel: (p: 'settings' | 
     }
     return [...map.entries()]
   }, [history, search])
+
+  const toggle = (cwd: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (next.has(cwd)) next.delete(cwd)
+      else next.add(cwd)
+      return next
+    })
+
+  const startRename = (h: SessionHistoryItem) => {
+    setEditing({ id: h.sessionId, value: h.title })
+    setMenu(null)
+  }
+
+  // 重命名：向 CLI 会话文件追加 custom-title 行（/rename、--name 的同一存储机制）
+  const commitRename = async () => {
+    if (!editing) return
+    const h = history.find((x) => x.sessionId === editing.id)
+    const newName = editing.value.trim()
+    setEditing(null)
+    if (!h || !newName || newName === h.title) return
+    const r = await window.api.sessions.rename(h.filePath, h.sessionId, newName)
+    if (r.ok) {
+      void useChat.getState().loadHistory()
+      useChat.getState().renameOpenTab(h.sessionId, newName)
+    } else setRenameError(r.error ?? '重命名失败')
+  }
 
   return (
     <div className="w-64 shrink-0 flex flex-col bg-[#15161e] border-r border-[#23252f]">
@@ -50,35 +84,76 @@ export function SessionSidebar({ onOpenPanel }: { onOpenPanel: (p: 'settings' | 
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
+        {renameError && (
+          <div
+            className="mt-1 px-2 py-1 rounded-md text-[11px] text-rose-300 bg-rose-950/40 border border-rose-900/40 cursor-pointer"
+            onClick={() => setRenameError('')}
+            title="点击关闭"
+          >
+            {renameError}
+          </div>
+        )}
       </div>
 
-      {/* 历史列表 */}
+      {/* 历史列表：目录级折叠分组 */}
       <div className="flex-1 overflow-y-auto px-1.5">
         {loading && <div className="text-xs text-slate-500 p-2">加载中…</div>}
         {!loading && grouped.length === 0 && (
           <div className="text-xs text-slate-600 p-2">暂无历史会话</div>
         )}
-        {grouped.map(([cwd, items]) => (
-          <div key={cwd} className="mb-2">
-            <div className="px-2 py-1 text-[11px] text-slate-500 truncate font-mono" title={cwd}>
-              {cwd}
-            </div>
-            {items.map((h) => (
+        {grouped.map(([cwd, items]) => {
+          const isCollapsed = collapsed.has(cwd)
+          const showItems = searching || !isCollapsed
+          return (
+            <div key={cwd} className="mb-0.5">
               <button
-                key={h.sessionId}
-                className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[#22242f] text-[12.5px] transition-colors group"
-                onClick={() => void resumeSession(h)}
-                title={`${h.title}\n\n${new Date(h.lastModified).toLocaleString()}\n${h.sessionId}`}
+                className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md hover:bg-[#1e2029] text-left transition-colors"
+                onClick={() => toggle(cwd)}
+                title={cwd || '(未知目录)'}
               >
-                <div className="text-slate-300 truncate">{h.title}</div>
-                <div className="text-[10.5px] text-slate-600 flex gap-2 mt-0.5">
-                  <span>{timeAgo(h.lastModified)}</span>
-                  {h.lastCostUsd !== undefined && <span>${h.lastCostUsd.toFixed(3)}</span>}
-                </div>
+                <span className="text-slate-600 text-[10px] w-3 shrink-0">
+                  {searching ? '·' : isCollapsed ? '▸' : '▾'}
+                </span>
+                <span className="text-[12px] text-slate-400 truncate flex-1">📁 {dirName(cwd)}</span>
+                <span className="text-[10.5px] text-slate-600 shrink-0">{items.length}</span>
               </button>
-            ))}
-          </div>
-        ))}
+              {showItems &&
+                items.map((h) =>
+                  editing?.id === h.sessionId ? (
+                    <div key={h.sessionId} className="pl-7 pr-2 py-0.5">
+                      <RenameInput
+                        value={editing.value}
+                        onChange={(v) => setEditing({ id: h.sessionId, value: v })}
+                        onCommit={() => void commitRename()}
+                        onCancel={() => setEditing(null)}
+                      />
+                    </div>
+                  ) : (
+                    <button
+                      key={h.sessionId}
+                      className="w-full text-left pl-7 pr-2 py-1.5 rounded-md hover:bg-[#22242f] text-[12.5px] transition-colors group"
+                      onClick={() => void resumeSession(h)}
+                      onContextMenu={(e) => {
+                        e.preventDefault()
+                        setMenu({
+                          x: e.clientX,
+                          y: e.clientY,
+                          items: [{ label: '重命名', onClick: () => startRename(h) }]
+                        })
+                      }}
+                      title={`${h.title}\n\n${new Date(h.lastModified).toLocaleString()}\n${h.sessionId}`}
+                    >
+                      <div className="text-slate-300 truncate">{h.title}</div>
+                      <div className="text-[10.5px] text-slate-600 flex gap-2 mt-0.5">
+                        <span>{timeAgo(h.lastModified)}</span>
+                        {h.lastCostUsd !== undefined && <span>${h.lastCostUsd.toFixed(3)}</span>}
+                      </div>
+                    </button>
+                  )
+                )}
+            </div>
+          )
+        })}
       </div>
 
       {/* 底部入口 */}
@@ -87,8 +162,50 @@ export function SessionSidebar({ onOpenPanel }: { onOpenPanel: (p: 'settings' | 
         <SidebarBtn label="🔌 MCP 服务器" onClick={() => onOpenPanel('mcp')} />
         <SidebarBtn label="📝 CLI 配置" onClick={() => onOpenPanel('config')} />
       </div>
+
+      {menu && <ContextMenu menu={menu} onClose={() => setMenu(null)} />}
     </div>
   )
+}
+
+/** 内联重命名输入框：Enter 保存 / Esc 取消 / 失焦保存 */
+function RenameInput({
+  value,
+  onChange,
+  onCommit,
+  onCancel
+}: {
+  value: string
+  onChange: (v: string) => void
+  onCommit: () => void
+  onCancel: () => void
+}) {
+  const ref = useRef<HTMLInputElement>(null)
+  useEffect(() => {
+    ref.current?.focus()
+    ref.current?.select()
+  }, [])
+  return (
+    <input
+      ref={ref}
+      className="w-full bg-[#1a1c26] border border-[#4a5785] rounded-md px-2 py-1 text-[12.5px] text-slate-100 focus:outline-none"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') onCommit()
+        else if (e.key === 'Escape') onCancel()
+      }}
+      onBlur={onCommit}
+      placeholder="输入新名称"
+    />
+  )
+}
+
+/** 从路径取目录名（兼容 Windows 与 POSIX 分隔符） */
+function dirName(path: string): string {
+  if (!path) return '(未知目录)'
+  const parts = path.split(/[\\/]/).filter(Boolean)
+  return parts[parts.length - 1] ?? path
 }
 
 function SidebarBtn({ label, onClick }: { label: string; onClick: () => void }) {

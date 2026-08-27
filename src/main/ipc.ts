@@ -1,7 +1,7 @@
 import { ipcMain, dialog, BrowserWindow } from 'electron'
 import { randomUUID } from 'crypto'
 import { RunnerRegistry } from './claude/runner'
-import { listSessionHistory } from './claude/sessions'
+import { listSessionHistory, renameSession } from './claude/sessions'
 import { readSessionTranscript } from './claude/transcript'
 import { mcpApi } from './claude/mcp'
 import { configApi } from './claude/config'
@@ -31,6 +31,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
 
   ipcMain.handle('sessions:list', () => listSessionHistory())
   ipcMain.handle('sessions:transcript', (_e, filePath: string) => readSessionTranscript(filePath))
+  ipcMain.handle('sessions:rename', (_e, filePath: string, sessionId: string, newName: string) =>
+    renameSession(filePath, sessionId, newName)
+  )
 
   // ---- MCP ----
 

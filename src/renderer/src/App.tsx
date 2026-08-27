@@ -9,6 +9,11 @@ import { SettingsPanel, McpPanel, ConfigPanel } from './components/Panels'
 
 type PanelKind = 'settings' | 'mcp' | 'config' | null
 
+// 模块级标志：newTab 是异步的（内部 await newUuid 后才 set），
+// StrictMode 双触发时两轮 effect 都会读到 tabs.length===0，导致重复建标签页。
+// 用同步标志保证启动阶段只建一次。
+let bootstrapped = false
+
 export default function App() {
   const [panel, setPanel] = useState<PanelKind>(null)
   const tabs = useChat((s) => s.tabs)
@@ -25,8 +30,10 @@ export default function App() {
     const offExit = window.api.claude.onExit(({ tabId, code, err }) => {
       useChat.getState().handleExit(tabId, code, err)
     })
-    // StrictMode 下 effect 会双触发，仅在没有标签页时自动创建
-    if (useChat.getState().tabs.length === 0) void newTab()
+    if (!bootstrapped) {
+      bootstrapped = true
+      void newTab()
+    }
 
     return () => {
       offEvent()

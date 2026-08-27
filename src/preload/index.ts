@@ -39,7 +39,12 @@ const api = {
           }>
           model?: string
         }>
-      >
+      >,
+    rename: (filePath: string, sessionId: string, newName: string) =>
+      ipcRenderer.invoke('sessions:rename', filePath, sessionId, newName) as Promise<{
+        ok: boolean
+        error?: string
+      }>
   },
 
   // MCP 管理
